@@ -1,6 +1,6 @@
 # Spring Boot Microservices — Interdependent Architecture
 
-Three Spring Boot services that depend on each other through REST HTTP calls.
+Hey there! This is a setup with three Spring Boot services that talk to each other over REST HTTP calls. It's all about how they depend on one another to get things done.
 
 ```
 ┌──────────────────────────────────────────────────────────┐
@@ -27,36 +27,38 @@ Three Spring Boot services that depend on each other through REST HTTP calls.
 
 ## Services
 
-| Service         | Port | Responsibility                            |
+Here's what each service does:
+
+| Service         | Port | What it handles                            |
 |----------------|------|-------------------------------------------|
-| user-service   | 8081 | CRUD users, validate active status        |
-| product-service| 8082 | CRUD products, manage stock reservation   |
-| order-service  | 8083 | Place/cancel orders, orchestrates the two above |
+| user-service   | 8081 | Manages users, checks if they're active   |
+| product-service| 8082 | Handles products, keeps track of stock    |
+| order-service  | 8083 | Places and cancels orders, coordinates the others |
 
 ---
 
 ## Quick Start (local, no Docker)
 
-### Prerequisites
-- Java 17+
-- Maven 3.8+
+### What you need first
+- Java 17 or higher
+- Maven 3.8 or up
 
-### 1. Start User Service
+### 1. Fire up the User Service
 ```bash
 cd user-service
 mvn spring-boot:run
-# Runs on http://localhost:8081
-# H2 console: http://localhost:8081/h2-console
+# It'll run on http://localhost:8081
+# Check the H2 console at http://localhost:8081/h2-console
 ```
 
-### 2. Start Product Service
+### 2. Start the Product Service
 ```bash
 cd product-service
 mvn spring-boot:run
 # Runs on http://localhost:8082
 ```
 
-### 3. Start Order Service
+### 3. Launch the Order Service
 ```bash
 cd order-service
 mvn spring-boot:run
@@ -65,13 +67,15 @@ mvn spring-boot:run
 
 ---
 
-## Quick Start (Docker Compose)
+## Quick Start (with Docker Compose)
+
+Just run this and you're good:
 
 ```bash
 docker-compose up --build
 ```
 
-Order Service will wait for User Service and Product Service to be healthy before starting.
+The Order Service waits for the other two to be ready before starting up.
 
 ---
 
@@ -80,28 +84,28 @@ Order Service will wait for User Service and Product Service to be healthy befor
 ### User Service
 
 ```bash
-# List all users (3 seeded on startup)
+# See all users (starts with 3 pre-loaded)
 curl http://localhost:8081/api/users
 
-# Get a specific user
+# Grab a specific user
 curl http://localhost:8081/api/users/1
 
-# Create a new user
+# Add a new user
 curl -X POST http://localhost:8081/api/users \
   -H "Content-Type: application/json" \
   -d '{"name":"Dave","email":"dave@example.com","phone":"555-9999"}'
 
-# Check if user is active (used internally by Order Service)
+# Check if a user is active (Order Service uses this)
 curl http://localhost:8081/api/users/1/active
 ```
 
 ### Product Service
 
 ```bash
-# List all products (3 seeded on startup)
+# List all products (3 seeded at start)
 curl http://localhost:8082/api/products
 
-# List only available products
+# Show only available ones
 curl http://localhost:8082/api/products/available
 
 # Create a product
@@ -113,7 +117,7 @@ curl -X POST http://localhost:8082/api/products \
 ### Order Service
 
 ```bash
-# Place a new order (calls User Service + Product Service internally)
+# Place an order (talks to User and Product Services behind the scenes)
 curl -X POST http://localhost:8083/api/orders \
   -H "Content-Type: application/json" \
   -d '{"userId":1,"productId":2,"quantity":1,"notes":"Please gift wrap"}'
@@ -121,26 +125,26 @@ curl -X POST http://localhost:8083/api/orders \
 # Get all orders
 curl http://localhost:8083/api/orders
 
-# Get orders for a specific user
+# Orders for a specific user
 curl http://localhost:8083/api/orders/user/1
 
-# Cancel an order (releases stock back to Product Service)
+# Cancel an order (frees up stock in Product Service)
 curl -X POST http://localhost:8083/api/orders/1/cancel
 
-# Advance order status (CONFIRMED → SHIPPED → DELIVERED)
+# Move order status forward (CONFIRMED → SHIPPED → DELIVERED)
 curl -X POST http://localhost:8083/api/orders/1/advance
 ```
 
 ---
 
-## Inter-Service Communication
+## How Services Talk to Each Other
 
-Order Service uses Spring WebFlux `WebClient` to make HTTP calls:
+The Order Service uses Spring WebFlux WebClient for HTTP calls:
 
-| Flow                   | Caller        | Callee          | Endpoint                      |
+| What happens          | Who calls      | Who gets called | Endpoint                      |
 |------------------------|--------------|-----------------|-------------------------------|
-| Validate user on order | Order Service | User Service    | `GET /api/users/{id}/active`  |
-| Fetch product info     | Order Service | Product Service | `GET /api/products/{id}`      |
+| Check user on order    | Order Service | User Service    | `GET /api/users/{id}/active`  |
+| Get product details    | Order Service | Product Service | `GET /api/products/{id}`      |
 | Reserve stock          | Order Service | Product Service | `POST /api/products/{id}/reserve` |
 | Release stock (cancel) | Order Service | Product Service | `POST /api/products/{id}/release` |
 
@@ -148,7 +152,7 @@ Order Service uses Spring WebFlux `WebClient` to make HTTP calls:
 
 ## Health Checks
 
-All services expose Spring Actuator endpoints:
+All services have Spring Actuator health endpoints:
 
 ```bash
 curl http://localhost:8081/actuator/health   # User Service
@@ -158,18 +162,10 @@ curl http://localhost:8083/actuator/health   # Order Service
 
 ---
 
-## Architecture Notes
+## Some Notes on the Setup
 
-- **No service registry** (Eureka/Consul): URLs are configured in `application.properties`
-- **No API Gateway**: Direct service-to-service calls for simplicity
-- **In-memory H2 databases**: Each service has its own isolated DB (data resets on restart)
-- **Stock management**: Order Service coordinates with Product Service for atomic stock reservation
-- **Error handling**: Global `@RestControllerAdvice` in Order Service returns structured errors
-
-To productionise, consider adding:
-- Service discovery (Spring Cloud Netflix Eureka or Consul)
-- API Gateway (Spring Cloud Gateway)
-- Persistent databases (PostgreSQL per service)
-- Distributed tracing (Zipkin/Sleuth)
-- Circuit breakers (Resilience4j)
-- Message queues (Kafka/RabbitMQ) for async events
+- **No service registry** like Eureka or Consul: Just hardcoded URLs in application.properties
+- **No API Gateway**: Direct calls between services to keep it simple
+- **In-memory H2 databases**: Each service has its own DB (resets when you restart)
+- **Stock handling**: Order Service works with Product Service to reserve stock atomically
+- **Error handling**: Order Service has a global exception handler for clean error responses.
